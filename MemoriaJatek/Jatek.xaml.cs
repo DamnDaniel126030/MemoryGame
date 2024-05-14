@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace MemoriaJatek
 {
@@ -19,19 +20,28 @@ namespace MemoriaJatek
 	/// </summary>
 	public partial class Jatek : Window
 	{
-		int numberOfRows = MainWindow.numOfRows;
-		List<Button> buttons = new List<Button>();
-		List<int> numbers = new List<int>();
-		Random rnd = new Random();
-		TextBlock tblock = new TextBlock();
-		List<int> buttonContents = new List<int>();
-		int points = 0;
+		public int numberOfRows = MainWindow.numOfRows;
+		public List<Button> buttons = new List<Button>();
+		public List<Button> buttons2 = new List<Button>();
+		public List<int> numbers = new List<int>();
+		public int[] checkNumbers = new int[2];
+		public List<Button> hiddenButtons = new List<Button>();
+		public int index = 0;
+		public Random rnd = new Random();
+		public TextBlock tblock = new TextBlock();
+		public List<int> buttonContents = new List<int>();
+		public int points = 0;
+		DispatcherTimer timer = new DispatcherTimer();
+		public int counter = 0;
+		
+		
 
 		public Jatek()
 		{
 			InitializeComponent();
 			AddNumbers();
 			GridSetting(numberOfRows);
+			
 		}
 
 
@@ -51,6 +61,7 @@ namespace MemoriaJatek
 				grd.ColumnDefinitions.Add(new ColumnDefinition());
 			}
 			ButtonSetting(numOfRows);
+			SecondLayerButtonSetting(numOfRows);
 		}
 
 		public void ButtonSetting(int numOfRows)
@@ -62,11 +73,30 @@ namespace MemoriaJatek
 					Button btn = new Button();
 					btn.FontSize = 30;
 					btn.Content = AddButtonContent();
-					btn.Click += Btn_Click;
+					btn.Background = Brushes.Cyan;
 					Grid.SetRow(btn, i);
 					Grid.SetColumn(btn, j);
 					grd.Children.Add(btn);
 					buttons.Add(btn);
+				}
+			}
+		}
+
+		public void SecondLayerButtonSetting(int numOfRows)
+		{
+			for (int row = 0; row < numOfRows; row++)
+			{
+				for (int col = 0; col < numOfRows; col++)
+				{
+					Button btn2 = new Button();
+					btn2.FontSize = 30;
+					btn2.Click += Btn_Click;
+					btn2.Content = "";
+					Grid.SetRow(btn2, row);
+					Grid.SetColumn(btn2, col);
+					grd.Children.Add(btn2);
+					buttons2.Add(btn2);
+
 				}
 			}
 		}
@@ -91,16 +121,92 @@ namespace MemoriaJatek
 		public void Btn_Click(object sender, RoutedEventArgs e)
 		{
 			Button button = sender as Button;
-			buttonContents.Add(int.Parse(button.Content.ToString()));	
-			if (buttonContents.Count == 2)
+			button.Visibility = Visibility.Hidden;
+			hiddenButtons.Add(button);
+			int row = Grid.GetRow(button);
+			int col = Grid.GetColumn(button);
+
+			Button btnContent = buttons.Find(btn => Grid.GetRow(btn) == row && Grid.GetColumn(btn) == col);
+			int number = int.Parse(btnContent.Content.ToString());
+
+			checkNumbers[index] = number;
+			if (index < 2)
 			{
-				if (buttonContents[0] == buttonContents[1])
+				if (hiddenButtons.Count == 2)
 				{
-					points++;
-					tblock.Text = $"\n\tPontok: {points}";
+					foreach (Button item1 in hiddenButtons)
+					{
+						foreach (Button item2 in buttons2)
+						{
+							if (item1 != item2)
+							{
+								item2.IsEnabled = false;
+							}
+						}
+					}
 				}
-				buttonContents.Clear();
+
+
+				if (checkNumbers[0] != 0 && checkNumbers[1] != 0)
+				{
+					timer.Interval = TimeSpan.FromSeconds(1);
+					timer.Tick += (s, args) =>
+					{
+						counter++;
+						if (checkNumbers[0] != checkNumbers[1])
+						{
+							if (counter == 1)
+							{
+								timer.Stop();
+								foreach (Button btn in hiddenButtons)
+								{
+									btn.Visibility = Visibility.Visible;
+
+								}
+								foreach (Button btn in buttons2)
+								{
+									btn.IsEnabled = true;
+								}
+								hiddenButtons.Clear();
+								counter = 0;
+							}
+						}
+						else
+						{
+							timer.Stop();
+							foreach (Button btn in hiddenButtons)
+							{
+								foreach (Button btn2 in buttons2)
+								{
+									if (btn == btn2)
+									{
+										buttons2.Remove(btn);
+										points++;
+										tblock.Text = $"\n\tPontok: {points / 2}";
+										return;
+									}
+								}
+							}
+							foreach (Button btn in buttons2)
+							{
+								btn.IsEnabled = true;
+							}
+
+							hiddenButtons.Clear();
+							counter = 0;
+						}
+					};
+					timer.Start();
+				}
+
+				index++;
 			}
+
+			if (index == 2)
+			{
+				index = 0;
+			}
+
 
 		}
 		
